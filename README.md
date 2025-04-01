@@ -1,13 +1,14 @@
-s
-
 ## Overview
 
-The **FHE-models-analysis** project focuses on analyzing and evaluating Fully Homomorphic Encryption (FHE) models. FHE enables computations on encrypted data without decrypting it, ensuring data privacy and security.
+The **FHE-models-analysis** project is dedicated to the exploration and evaluation of Fully Homomorphic Encryption (FHE) models. FHE allows computations on encrypted data, preserving privacy and security throughout the process.
+
+This repository includes research and findings documented in `research.ipynb`, which provides detailed insights into the performance and applicability of FHE models in various scenarios.
 
 ## Features
 
-- **Model Evaluation**: Analyze the performance of various FHE models.
-- **Benchmarking**: Compare FHE models based on speed, accuracy, and resource usage.
+- **In-depth Analysis**: Comprehensive evaluation of FHE models using real-world datasets.
+- **Performance Metrics**: Detailed benchmarking of speed, accuracy, and computational efficiency.
+- **Visualization**: Graphical representation of results for better understanding.
 
 ## Getting Started
 
@@ -19,12 +20,19 @@ The **FHE-models-analysis** project focuses on analyzing and evaluating Fully Ho
     ```bash
     cd FHE-models-analysis
     ```
-3. Follow the setup instructions in the `INSTALL.md` file.
+3. Install the required dependencies:
+    ```bash
+    pip install -r requirements.txt
+    ```
+4. Open the `research.ipynb` file in Jupyter Notebook or JupyterLab to explore the analysis:
+    ```bash
+    jupyter notebook research.ipynb
+    ```
 
 ## Contributing
 
-Contributions are welcome! Please read the `CONTRIBUTING.md` file for guidelines.
+We welcome contributions to enhance the project! Please refer to the `CONTRIBUTING.md` file for contribution guidelines.
 
 ## License
 
-This project is licensed under the MIT License. See the `LICENSE` file for details.
+This project is licensed under the MIT License. See the `LICENSE` file for more details.
