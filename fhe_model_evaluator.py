@@ -186,8 +186,26 @@ class FHEModelEvaluator:
 
     def process_data(self):
         """
-        Process input data: split into train/test sets, scale features, and create undersampler
-        
+        Processes the input dataset by performing the following steps:
+        1. Validates the presence of data and target column.
+        2. Splits the dataset into features (X) and target (y).
+        3. Scales the features using StandardScaler if scaling is enabled.
+        4. Splits the data into training and testing sets.
+        5. Creates an undersampler for handling class imbalance if an undersampling ratio is provided.
+        Raises:
+            ValueError: If `data` or `target_column` is not provided.
+        Attributes:
+            self.X (numpy.ndarray): Feature matrix after dropping the target column.
+            self.y (numpy.ndarray): Target vector extracted from the dataset.
+            self.scaler (StandardScaler): Scaler object used for feature scaling (if scaling is enabled).
+            self.X_train (numpy.ndarray): Training feature matrix.
+            self.X_test (numpy.ndarray): Testing feature matrix.
+            self.y_train (numpy.ndarray): Training target vector.
+            self.y_test (numpy.ndarray): Testing target vector.
+            self.undersampler (RandomUnderSampler): Undersampler object for handling class imbalance.
+            self.data_processed (bool): Flag indicating whether the data has been successfully processed.
+        Returns:
+            self: The instance of the class with processed data.
         """
         
         if self.data is None or self.target_column is None:
@@ -230,8 +248,14 @@ class FHEModelEvaluator:
     
     def run_full_pipeline(self):
         """
-        Run evaluation pipeline: data processing, grid search, model evaluation.
-        
+        Executes the full evaluation pipeline, including data processing, grid search for optimal 
+        parameters, and model evaluation for both Fully Homomorphic Encryption (FHE) and plain text models.
+        The pipeline performs the following steps:
+        1. Processes the data if it has not already been processed.
+        2. Conducts a grid search to find the best hyperparameters for each specified model type.
+        3. Evaluates the performance of models on test data, comparing FHE and plain text implementations.
+            dict: A dictionary containing the evaluation results, including a summary of the 
+                  comparison between FHE and plain text models.        
         Returns:
             dict: Evaluation results
         """
@@ -290,7 +314,31 @@ class FHEModelEvaluator:
     
     def grid_search(self, model_type, param_grid, x, y, undersampler=None, cv=5, scoring='f1'):
         """
-        Perform grid search to find optimal hyperparameters for a model.
+        Perform a grid search to find the optimal hyperparameters for a given model.
+        Parameters:
+            model_type (str): The type of model to evaluate. This should correspond to a valid model type 
+                              that can be retrieved using the `_get_estimator` method.
+            param_grid (dict): Dictionary with parameters names (str) as keys and lists of parameter 
+                               settings to try as values.
+            x (array-like): Feature matrix for training the model.
+            y (array-like): Target vector for training the model.
+            undersampler (imblearn.under_sampling.BaseUnderSampler, optional): An undersampling strategy 
+                              to handle class imbalance. If None, a `RandomUnderSampler` with the 
+                              instance's `random_state` will be used. Default is None.
+            cv (int, optional): Number of cross-validation folds. Default is 5.
+            scoring (str, optional): Scoring metric to evaluate the model performance. Default is 'f1'.
+        Returns:
+            dict: A dictionary containing the following keys:
+                - 'best_params': The best hyperparameters found during the grid search.
+                - 'best_score': The best score achieved with the best hyperparameters.
+                - 'cv_results': Detailed cross-validation results as a dictionary.
+                - 'grid_search': The fitted `GridSearchCV` object.
+        Side Effects:
+            Updates the `self.results` dictionary with the grid search results under the key 
+            "{model_type}_grid_search".
+        Notes:
+            - The method prints progress and results if `self.verbose` is set to True.
+            - The `n_jobs` parameter of `GridSearchCV` is set to `self.n_jobs` to control parallelism
         """
         if undersampler is None:
             undersampler = RandomUnderSampler(random_state=self.random_state)
@@ -327,7 +375,19 @@ class FHEModelEvaluator:
         return result
     
     def _get_estimator(self, model_type):
-        """Get the appropriate scikit-learn estimator."""
+        """
+        Retrieve the appropriate scikit-learn estimator based on the model type.
+        Args:
+            model_type (str): The type of the model as a string. This should match
+                one of the keys in `self.model_mappings`.
+        Returns:
+            sklearn.base.BaseEstimator: An instance of the scikit-learn estimator
+                corresponding to the specified model type, initialized with the
+                configured random state.
+        Raises:
+            ValueError: If the provided `model_type` is not supported or not found
+                in `self.model_mappings`.
+        """
         model_type = model_type.lower()
         if model_type not in self.model_mappings:
             raise ValueError(f"Unsupported model type: {model_type}")
@@ -336,7 +396,26 @@ class FHEModelEvaluator:
         return estimator_class(random_state=self.random_state)
     
     def _get_fhe_estimator(self, model_type, **kwargs):
-        """Get the appropriate FHE estimator."""
+        """
+        Retrieve the appropriate Fully Homomorphic Encryption (FHE) estimator class instance.
+        This method dynamically imports and initializes an FHE estimator class based on the 
+        provided model type. The mapping between model types and their corresponding FHE 
+        classes is defined in `self.model_mappings`.
+        Args:
+            model_type (str): The type of the model for which the FHE estimator is required.
+                              This should match a key in `self.model_mappings`.
+            **kwargs: Additional keyword arguments to pass to the FHE estimator's constructor.
+        Returns:
+            object: An instance of the FHE estimator class corresponding to the given model type.
+        Raises:
+            ValueError: If the provided `model_type` is not supported or not found in 
+                        `self.model_mappings`.
+        Notes:
+            - The `self.model_mappings` attribute is expected to be a dictionary where the keys 
+              are model types (strings) and the values are tuples containing metadata, with the 
+              third element being the name of the FHE class.
+            - The FHE estimator classes are expected to be located in the `concrete.ml.sklearn` module.
+        """
         model_type = model_type.lower()
         if model_type not in self.model_mappings:
             raise ValueError(f"Unsupported FHE model type: {model_type}")
@@ -352,7 +431,28 @@ class FHEModelEvaluator:
     def evaluate_models(self, model_types, x, y, best_params, bit_widths, 
                       undersampler=None, cv_splits=5, n_iterations=100):
         """
-        Evaluate and compare plain models vs FHE models across multiple model types.
+        Evaluate and compare plain models vs FHE (Fully Homomorphic Encryption) models 
+                    across multiple model types.
+                    Parameters:
+                        model_types (list): A list of model types to evaluate (e.g., ['logistic', 'svm']).
+                        x (array-like): Feature matrix for the dataset.
+                        y (array-like): Target labels for the dataset.
+                        best_params (dict): A dictionary containing the best hyperparameters for each model type.
+                        bit_widths (list): A list of bit widths to evaluate for FHE models.
+                        undersampler (object, optional): An undersampler instance for balancing the dataset. 
+                                                         Defaults to RandomUnderSampler.
+                        cv_splits (int, optional): Number of cross-validation splits. Defaults to 5.
+                        n_iterations (int, optional): Number of iterations for evaluation. Defaults to 100.
+                    Returns:
+                        dict: A dictionary containing the evaluation results with the following keys:
+                            - 'model_comparison': Detailed comparison of plain and FHE models for each model type.
+                            - 'summary': A summary of the evaluation results.
+                            - 'best_models': Information about the best-performing FHE models for each model type.
+                    Notes:
+                        - The method evaluates both plain and FHE models using cross-validation.
+                        - It compares the performance of plain and FHE models in terms of accuracy, latency, 
+                          and trade-offs.
+                        - Figures and visualizations are generated for each model type to aid in analysis.       
         """
         # Setup defaults
         if undersampler is None:
@@ -415,7 +515,35 @@ class FHEModelEvaluator:
     
     def _evaluate_model(self, model, x, y, undersampler, kf, n_iterations):
         """
-        Evaluate a model using cross-validation.
+        This method performs cross-validation on the given model using the provided
+        dataset, undersampler, and cross-validation strategy. It calculates various
+        performance metrics for each fold and aggregates the results.
+        Args:
+            model (object): The machine learning model to evaluate. Must implement
+                `fit`, `predict`, and optionally `predict_proba` methods.
+            x (array-like): Feature matrix for the dataset.
+            y (array-like): Target labels for the dataset.
+            undersampler (object): An undersampling strategy object that implements
+                the `fit_resample` method to handle class imbalance.
+            kf (object): A cross-validation splitting strategy object (e.g., KFold).
+            n_iterations (int): Number of iterations to measure latency.
+        Returns:
+            dict: A dictionary containing the evaluation results, including:
+                - 'fold_results': A list of dictionaries with metrics for each fold.
+                - 'metrics': A dictionary of lists for each metric across folds.
+                - 'avg_<metric_name>': The average value of each metric across folds.
+        Metrics:
+            - accuracy: Classification accuracy.
+            - f1: F1 score.
+            - precision: Precision score.
+            - recall: Recall score.
+            - roc_auc: Area under the ROC curve.
+            - latency: Inference latency in milliseconds.
+            - training_time: Model training time in seconds.
+        Notes:
+            - If the model does not implement `predict_proba`, the predicted labels
+              are used directly for metrics that require probabilities.
+            - The method prints fold-wise results and a summary if `self.verbose` is True.
         """
         results = {
             'fold_results': [],
@@ -473,8 +601,31 @@ class FHEModelEvaluator:
     
     def _evaluate_fhe_models(self, model_type, params, bit_widths, x, y, undersampler, kf, n_iterations):
         """
-        Evaluate FHE models with different bit widths.
-        """
+        Evaluate Fully Homomorphic Encryption (FHE) models with different bit widths.
+        This method evaluates the performance of FHE models by iterating over a range of bit widths.
+        For each bit width, it performs k-fold cross-validation, measures latency, and computes
+        various performance metrics such as accuracy, F1-score, precision, recall, and ROC AUC.
+        Args:
+            model_type (str): The type of the model to be evaluated.
+            params (dict): Parameters to configure the FHE model.
+            bit_widths (list[int]): A list of bit widths to evaluate the model with.
+            x (np.ndarray): Feature matrix for the dataset.
+            y (np.ndarray): Target labels for the dataset.
+            undersampler (object): An undersampling strategy to handle class imbalance.
+            kf (object): A KFold cross-validator instance for splitting the data.
+            n_iterations (int): Number of iterations for latency measurement.
+        Returns:
+            dict: A dictionary containing the evaluation results:
+                - 'bit_widths': List of evaluated bit widths.
+                - 'accuracies': Average accuracy for each bit width.
+                - 'latencies': Average latency for each bit width.
+                - 'detailed_results': Detailed results for each bit width, including metrics
+                  for each fold, average metrics, and timing information.
+        Notes:
+            - The method uses k-fold cross-validation to evaluate the model's performance.
+            - Latency is measured using the `_measure_latency` method.
+            - Metrics are calculated using the `_calculate_metrics` method.
+            - If `self.verbose` is True, progress and summaries are printed during execution.        """
         results = {
             'bit_widths': bit_widths,
             'accuracies': [],
@@ -545,7 +696,22 @@ class FHEModelEvaluator:
         return results
     
     def _calculate_metrics(self, y_true, y_pred, y_pred_proba):
-        """Calculate classification metrics."""
+        """
+        Calculate classification metrics for a given set of true labels, predicted labels, 
+        and predicted probabilities.
+        Args:
+            y_true (array-like): True class labels.
+            y_pred (array-like): Predicted class labels.
+            y_pred_proba (array-like): Predicted probabilities for the positive class.
+        Returns:
+            dict: A dictionary containing the following classification metrics:
+                - 'accuracy': Accuracy of the predictions.
+                - 'f1': F1 score of the predictions.
+                - 'precision': Precision of the predictions.
+                - 'recall': Recall of the predictions.
+                - 'roc_auc': ROC AUC score of the predictions. If the ROC AUC score cannot 
+                  be calculated, it will be set to NaN.
+        """
         metrics = {
             'accuracy': accuracy_score(y_true, y_pred),
             'f1': f1_score(y_true, y_pred),
@@ -561,7 +727,22 @@ class FHEModelEvaluator:
         return metrics
     
     def _measure_latency(self, model, X_test, n_iterations=100):
-        """Measure average inference latency in milliseconds."""
+        """
+        Measure the average inference latency of a given model.
+
+        This method calculates the average time taken for the model to perform
+        inference on the provided test data over a specified number of iterations.
+        The result is returned in milliseconds.
+
+        Args:
+            model: The machine learning model to evaluate. It must have a `predict` method.
+            X_test: The input data for testing the model's inference latency.
+            n_iterations (int, optional): The number of iterations to perform the latency
+                measurement. Default is 100.
+
+        Returns:
+            float: The average inference latency in milliseconds.
+        """
         inference_times = []
         for _ in range(n_iterations):
             start_time = time.time()
@@ -570,7 +751,33 @@ class FHEModelEvaluator:
         return np.mean(inference_times) * 1000  # Convert to ms
     
     def _compare_models(self, plain_results, cipher_results):
-        """Compare plain and cipher models to evaluate tradeoffs."""
+        """
+        Compare the performance of plain and cipher models to evaluate tradeoffs.
+        This method calculates the differences in accuracy, the ratios of latency,
+        and a tradeoff score for each configuration of the cipher model compared
+        to the plain model. It identifies the configuration with the best tradeoff
+        based on the calculated scores.
+        Args:
+            plain_results (dict): A dictionary containing the results of the plain model.
+                Expected keys:
+                    - 'avg_accuracy' (float): The average accuracy of the plain model.
+                    - 'avg_latency' (float): The average latency of the plain model.
+            cipher_results (dict): A dictionary containing the results of the cipher model.
+                Expected keys:
+                    - 'bit_widths' (list of int): The bit widths used in the cipher model.
+                    - 'accuracies' (list of float): The accuracies of the cipher model for each bit width.
+                    - 'latencies' (list of float): The latencies of the cipher model for each bit width.
+        Returns:
+            dict: A dictionary containing the comparison results. Keys include:
+                - 'bit_widths' (list of int): The bit widths used in the cipher model.
+                - 'accuracy_diffs' (list of float): The differences in accuracy between the cipher
+                  and plain models for each bit width.
+                - 'latency_ratios' (list of float): The ratios of latency between the cipher and
+                  plain models for each bit width.
+                - 'tradeoff_scores' (list of float): The calculated tradeoff scores for each bit width.
+                - 'best_tradeoff_idx' (int): The index of the configuration with the best tradeoff score.
+                - 'best_bit_width' (int): The bit width corresponding to the best tradeoff score.
+        """
         comparison = {
             'bit_widths': cipher_results['bit_widths'],
             'accuracy_diffs': [],
@@ -605,7 +812,34 @@ class FHEModelEvaluator:
         return comparison
     
     def _create_model_figures(self, plain_results, cipher_results, comparison):
-        """Create visualization figures for model comparison."""
+        """
+        Create visualization figures for model comparison.
+        This method generates three plots to visualize and compare the performance
+        of a Fully Homomorphic Encryption (FHE) model against a plain model:
+        - Accuracy vs Bit Width
+        - Latency vs Bit Width (Log Scale)
+        - Accuracy-Latency Tradeoff by Bit Width
+        Args:
+            plain_results (dict): A dictionary containing results for the plain model.
+                Expected keys:
+                    - 'avg_accuracy' (float): Average accuracy of the plain model.
+                    - 'avg_latency' (float): Average latency of the plain model in milliseconds.
+            cipher_results (dict): A dictionary containing results for the FHE model.
+                Expected keys:
+                    - 'bit_widths' (list of int): List of bit widths used in the FHE model.
+                    - 'accuracies' (list of float): Corresponding accuracies for each bit width.
+                    - 'latencies' (list of float): Corresponding latencies (in milliseconds) for each bit width.
+            comparison (dict): A dictionary containing tradeoff analysis results.
+                Expected keys:
+                    - 'tradeoff_scores' (list of float): Tradeoff scores for each bit width.
+                    - 'best_tradeoff_idx' (int): Index of the bit width with the best tradeoff score.
+        Returns:
+            dict: A dictionary containing the generated matplotlib figures.
+                Keys:
+                    - 'accuracy_fig': Figure for Accuracy vs Bit Width.
+                    - 'latency_fig': Figure for Latency vs Bit Width (Log Scale).
+                    - 'tradeoff_fig': Figure for Accuracy-Latency Tradeoff by Bit Width.
+        """
         bit_widths = cipher_results['bit_widths']
         
         # Create accuracy comparison plot
@@ -650,7 +884,23 @@ class FHEModelEvaluator:
         }
     
     def _print_model_summary(self, results):
-        """Print a summary of model evaluation results."""
+        """
+        Print a summary of model evaluation results.
+
+        Args:
+            results (dict): A dictionary containing the evaluation metrics of the model. 
+                            Expected keys include:
+                            - 'avg_accuracy' (float): The average accuracy of the model.
+                            - 'avg_f1' (float): The average F1 score of the model.
+                            - 'avg_precision' (float): The average precision of the model.
+                            - 'avg_recall' (float): The average recall of the model.
+                            - 'avg_roc_auc' (float): The average ROC AUC score of the model.
+                            - 'avg_latency' (float): The average inference latency in milliseconds.
+                            - 'avg_training_time' (float): The average training time in seconds.
+
+        Returns:
+            None
+        """
         print("\n" + "="*50)
         print("MODEL SUMMARY")
         print(f"Average Accuracy: {results['avg_accuracy']:.4f}")
@@ -663,7 +913,20 @@ class FHEModelEvaluator:
         print("="*50 + "\n")
     
     def _print_bit_width_summary(self, results):
-        """Print a summary of the results for a given bit-width."""
+        """
+        Print a summary of evaluation results for a specific bit-width.
+
+        Args:
+            results (dict): A dictionary containing evaluation metrics for a given bit-width.
+                Expected keys in the dictionary:
+                    - 'bit_width' (int): The bit-width value.
+                    - 'avg_accuracy' (float): The average accuracy of the model.
+                    - 'avg_f1' (float): The average F1 score of the model.
+                    - 'avg_latency' (float): The average latency in milliseconds.
+
+        Returns:
+            None
+        """
         print("\n" + "="*50)
         print(f"Bit-Width: {results['bit_width']}")
         print(f"Average Accuracy: {results['avg_accuracy']:.4f}")
@@ -672,11 +935,39 @@ class FHEModelEvaluator:
         print("="*50 + "\n")
     
     def _generate_summary(self, evaluation_results):
-        """Generate summary metrics across all models."""
+        """
+        Generate a summary of evaluation metrics across all models.
+        This method processes the evaluation results to identify the best models
+        based on accuracy, latency, and overhead. It also creates a comparison
+        table summarizing key metrics for each model.
+        Args:
+            evaluation_results (dict): A dictionary containing evaluation results
+                with the following structure:
+                {
+                    'best_models': {
+                        <model_name>: {
+                            'plain_accuracy': float,
+                            'accuracy': float,
+                            'plain_latency': float,
+                            'latency': float,
+                            'overhead': float,
+                            'bit_width': int
+                        },
+                        ...
+        Updates:
+            evaluation_results['summary'] (dict): A dictionary containing the summary
+                of evaluation metrics with the following keys:
+                - 'best_accuracy_model': The model with the highest FHE accuracy.
+                - 'best_latency_model': The model with the lowest FHE latency.
+                - 'best_overhead_model': The model with the lowest latency overhead.
+                - 'comparison_table': A pandas DataFrame summarizing metrics for all models.
+        Prints:
+            If `self.verbose` is True, prints a detailed summary of the best models
+            and the comparison table.
+        """
         model_types = list(evaluation_results['best_models'].keys())
         best_models = evaluation_results['best_models']
         
-        # Create summary metrics
         summary = {
             'best_accuracy_model': max(model_types, key=lambda m: best_models[m]['accuracy']),
             'best_latency_model': min(model_types, key=lambda m: best_models[m]['latency']),
@@ -711,7 +1002,21 @@ class FHEModelEvaluator:
             print("="*80)
     
     def visualize_model_comparison(self):
-        """Create visualizations comparing all evaluated models."""
+        """
+        Create visualizations comparing the performance of all evaluated models.
+        This method generates visualizations that compare the accuracy, latency, 
+        and other metrics of models evaluated in the system. It requires that 
+        the `evaluate_models` method has been run beforehand to populate the 
+        `self.results` dictionary with evaluation data.
+        Raises:
+            ValueError: If no evaluation results are found in `self.results`.
+        Returns:
+            Tuple[matplotlib.figure.Figure, matplotlib.figure.Figure]: 
+                A tuple containing two matplotlib figures:
+                - The first figure compares the plain and FHE accuracies of the models.
+                - The second figure compares the plain and FHE latencies, along with 
+                  other metrics such as overhead and bit width.
+        """
         if 'evaluation' not in self.results:
             raise ValueError("No evaluation results found. Run evaluate_models first.")
         
@@ -719,7 +1024,6 @@ class FHEModelEvaluator:
         best_models = evaluation['best_models']
         model_types = list(best_models.keys())
         
-        # Prepare data
         models = [model_type.upper() for model_type in model_types]
         plain_accuracies = [best_models[model]['plain_accuracy'] for model in model_types]
         fhe_accuracies = [best_models[model]['accuracy'] for model in model_types]
@@ -728,7 +1032,6 @@ class FHEModelEvaluator:
         overheads = [best_models[model]['overhead'] for model in model_types]
         bit_widths = [best_models[model]['bit_width'] for model in model_types]
         
-        # Create figures
         acc_fig, latency_fig = self._create_comparison_figures(
             models, plain_accuracies, fhe_accuracies, 
             plain_latencies, fhe_latencies, 
@@ -741,8 +1044,23 @@ class FHEModelEvaluator:
     
     def _create_comparison_figures(self, models, plain_accs, fhe_accs, 
                                 plain_lats, fhe_lats, overheads, bit_widths):
-        """Helper method to create comparison figures."""
-        # Create accuracy comparison
+        """
+        Helper method to create comparison figures for model accuracy and latency.
+        This method generates two bar plots:
+        1. A comparison of the accuracy between plain and FHE (Fully Homomorphic Encryption) models.
+        2. A comparison of the latency between plain and FHE models, with latency displayed on a logarithmic scale.
+        Parameters:
+            models (list of str): A list of model names/types.
+            plain_accs (list of float): A list of accuracy values for the plain models.
+            fhe_accs (list of float): A list of accuracy values for the FHE models.
+            plain_lats (list of float): A list of latency values (in milliseconds) for the plain models.
+            fhe_lats (list of float): A list of latency values (in milliseconds) for the FHE models.
+            overheads (list of float): A list of latency overhead factors for the FHE models compared to the plain models.
+            bit_widths (list of int): A list of bit-width values for the FHE models.
+        Returns:
+            tuple: A tuple containing two matplotlib figure objects:
+                - acc_fig: The figure for accuracy comparison.
+                - lat_fig: The figure for latency comparison. """
         acc_fig, ax1 = plt.subplots(figsize=(12, 8))
         x = np.arange(len(models))
         width = 0.35
@@ -766,7 +1084,6 @@ class FHEModelEvaluator:
         ax1.legend()
         ax1.grid(True, alpha=0.3)
         
-        # Create latency comparison
         lat_fig, ax2 = plt.subplots(figsize=(12, 8))
         
         ax2.bar(x - width/2, plain_lats, width, label='Plain Model')
@@ -794,16 +1111,27 @@ class FHEModelEvaluator:
     
 
     def generate_report(self, report_file='fhe_evaluation_report.txt', output_folder='results', save_figures=True):
-        """
-        Generate a comprehensive report and visualizations of the FHE evaluation.
-        
-        Parameters:
-            report_file (str): Path to save the report.
-            output_folder (str): Folder to save report and figures.
-            save_figures (bool): Whether to save figures to disk.
-            
-        Returns:
-            tuple: (acc_fig, latency_fig) matplotlib figures
+        """      
+        This method generates a detailed report summarizing the evaluation of Fully Homomorphic Encryption (FHE) models 
+        compared to plain models. It includes visualizations of accuracy, latency, and tradeoff metrics, and saves the 
+        results to specified files and folders.
+            report_file (str): The name of the report file to save. Default is 'fhe_evaluation_report.txt'.
+            output_folder (str): The folder where the report and figures will be saved. Default is 'results'.
+            save_figures (bool): Whether to save the generated figures to disk. Default is True.
+            tuple: A tuple containing:
+                - acc_fig (matplotlib.figure.Figure): The figure for overall accuracy comparison.
+                - latency_fig (matplotlib.figure.Figure): The figure for overall latency comparison.
+                - model_figures (dict): A dictionary containing paths to model-specific figures, including:
+                    - 'accuracy': Path to the accuracy figure for each model type.
+                    - 'latency': Path to the latency figure for each model type.
+                    - 'tradeoff': Path to the tradeoff figure for each model type.
+                    - 'bit_width_impact': Path to the bit-width impact figure for each model type.
+        Raises:
+            ValueError: If the evaluation has not been completed before calling this method.
+        Notes:
+            - The method assumes that the evaluation has been completed and results are stored in the instance variables.
+            - Figures are saved in the specified output folder with descriptive filenames.
+            - The report includes dataset information, model parameters, evaluation results, and generated figure details.
         """
         if not self.evaluation_complete:
             raise ValueError("Must run evaluation before generating report")
@@ -942,4 +1270,3 @@ class FHEModelEvaluator:
         
         return acc_fig, latency_fig, model_figures
     
-    print(f"FHE Model Evaluator initialized")
