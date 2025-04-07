@@ -1,0 +1,267 @@
+FHE vs Plain Model Evaluation Report
+========================================
+
+Dataset: Credit Card Fraud Detection
+Total samples: 284807
+Fraud cases: 492 (0.17%)
+
+Model Parameters:
+LR: {'C': 0.1, 'penalty': 'l2', 'solver': 'liblinear'}
+RF: {'max_depth': 7, 'min_samples_leaf': 3, 'n_estimators': 100}
+DT: {'max_depth': 3, 'min_samples_leaf': 4, 'min_samples_split': 2}
+
+FHE Evaluation Results:
+Best model by accuracy: RF
+Best model by latency: LR
+Best model by overhead: LR
+
+----------------------------------------------------------------------
+Evaluating LR models
+----------------------------------------------------------------------
+Fold 1: Accuracy=0.9986, F1=0.6829, Latency=0.6259ms
+Fold 2: Accuracy=0.9981, F1=0.5843, Latency=0.7552ms
+Fold 3: Accuracy=0.9981, F1=0.6250, Latency=0.7446ms
+
+==================================================
+MODEL SUMMARY
+Average Accuracy: 0.9983
+Average F1 Score: 0.6307
+Average Precision: 0.5013
+Average Recall: 0.8567
+Average ROC AUC: 0.9711
+Average Inference Latency: 0.7086 ms
+Average Training Time: 0.0059 s
+==================================================
+
+Bit Width 2, Fold 1: Accuracy=0.9985, Latency=4.2561ms
+Bit Width 2, Fold 2: Accuracy=0.9983, Latency=4.1488ms
+Bit Width 2, Fold 3: Accuracy=0.9988, Latency=4.6357ms
+
+==================================================
+Bit-Width: 2
+Average Accuracy: 0.9985
+Average F1 Score: 0.3573
+Average Latency: 4.3469 ms
+==================================================
+
+Bit Width 3, Fold 1: Accuracy=0.9986, Latency=4.4162ms
+Bit Width 3, Fold 2: Accuracy=0.9972, Latency=4.4899ms
+Bit Width 3, Fold 3: Accuracy=0.9987, Latency=4.3216ms
+
+==================================================
+Bit-Width: 3
+Average Accuracy: 0.9982
+Average F1 Score: 0.5866
+Average Latency: 4.4092 ms
+==================================================
+
+Bit Width 4, Fold 1: Accuracy=0.9984, Latency=4.8232ms
+Bit Width 4, Fold 2: Accuracy=0.9970, Latency=4.8398ms
+Bit Width 4, Fold 3: Accuracy=0.9952, Latency=4.6752ms
+
+==================================================
+Bit-Width: 4
+Average Accuracy: 0.9968
+Average F1 Score: 0.5050
+Average Latency: 4.7794 ms
+==================================================
+
+Bit Width 6, Fold 1: Accuracy=0.9986, Latency=4.7884ms
+Bit Width 6, Fold 2: Accuracy=0.9982, Latency=4.1899ms
+Bit Width 6, Fold 3: Accuracy=0.9979, Latency=4.3601ms
+
+==================================================
+Bit-Width: 6
+Average Accuracy: 0.9982
+Average F1 Score: 0.6289
+Average Latency: 4.4461 ms
+==================================================
+
+Bit Width 8, Fold 1: Accuracy=0.9986, Latency=5.0243ms
+Bit Width 8, Fold 2: Accuracy=0.9981, Latency=4.9530ms
+Bit Width 8, Fold 3: Accuracy=0.9981, Latency=4.5716ms
+
+==================================================
+Bit-Width: 8
+Average Accuracy: 0.9983
+Average F1 Score: 0.6302
+Average Latency: 4.8496 ms
+==================================================
+
+
+----------------------------------------------------------------------
+Evaluating RF models
+----------------------------------------------------------------------
+Fold 1: Accuracy=0.9981, F1=0.6087, Latency=39.7754ms
+Fold 2: Accuracy=0.9987, F1=0.6753, Latency=36.8379ms
+Fold 3: Accuracy=0.9985, F1=0.6818, Latency=41.5686ms
+
+==================================================
+MODEL SUMMARY
+Average Accuracy: 0.9984
+Average F1 Score: 0.6553
+Average Precision: 0.5326
+Average Recall: 0.8567
+Average ROC AUC: 0.9534
+Average Inference Latency: 39.3940 ms
+Average Training Time: 0.2589 s
+==================================================
+
+Bit Width 2, Fold 1: Accuracy=0.9987, Latency=2152.8465ms
+Bit Width 2, Fold 2: Accuracy=0.9984, Latency=2127.9528ms
+Bit Width 2, Fold 3: Accuracy=0.9988, Latency=1680.0812ms
+
+==================================================
+Bit-Width: 2
+Average Accuracy: 0.9986
+Average F1 Score: 0.6780
+Average Latency: 1986.9602 ms
+==================================================
+
+Bit Width 3, Fold 1: Accuracy=0.9989, Latency=2781.3307ms
+Bit Width 3, Fold 2: Accuracy=0.9989, Latency=1973.9117ms
+Bit Width 3, Fold 3: Accuracy=0.9984, Latency=2048.6719ms
+
+==================================================
+Bit-Width: 3
+Average Accuracy: 0.9987
+Average F1 Score: 0.6971
+Average Latency: 2267.9714 ms
+==================================================
+
+Bit Width 4, Fold 1: Accuracy=0.9992, Latency=1981.2447ms
+Bit Width 4, Fold 2: Accuracy=0.9989, Latency=1970.2554ms
+Bit Width 4, Fold 3: Accuracy=0.9983, Latency=1894.4355ms
+
+==================================================
+Bit-Width: 4
+Average Accuracy: 0.9988
+Average F1 Score: 0.7153
+Average Latency: 1948.6452 ms
+==================================================
+
+Bit Width 6, Fold 1: Accuracy=0.9983, Latency=1971.4407ms
+Bit Width 6, Fold 2: Accuracy=0.9989, Latency=1669.8651ms
+Bit Width 6, Fold 3: Accuracy=0.9984, Latency=1916.1698ms
+
+==================================================
+Bit-Width: 6
+Average Accuracy: 0.9985
+Average F1 Score: 0.6727
+Average Latency: 1852.4919 ms
+==================================================
+
+Bit Width 8, Fold 1: Accuracy=0.9981, Latency=1776.0830ms
+Bit Width 8, Fold 2: Accuracy=0.9987, Latency=1751.1397ms
+Bit Width 8, Fold 3: Accuracy=0.9986, Latency=2002.2668ms
+
+==================================================
+Bit-Width: 8
+Average Accuracy: 0.9985
+Average F1 Score: 0.6609
+Average Latency: 1843.1632 ms
+==================================================
+
+
+----------------------------------------------------------------------
+Evaluating DT models
+----------------------------------------------------------------------
+Fold 1: Accuracy=0.9944, F1=0.3205, Latency=1.8102ms
+Fold 2: Accuracy=0.9954, F1=0.3830, Latency=2.8713ms
+Fold 3: Accuracy=0.9939, F1=0.3333, Latency=2.4228ms
+
+==================================================
+MODEL SUMMARY
+Average Accuracy: 0.9946
+Average F1 Score: 0.3456
+Average Precision: 0.2189
+Average Recall: 0.8267
+Average ROC AUC: 0.9402
+Average Inference Latency: 2.3681 ms
+Average Training Time: 0.0138 s
+==================================================
+
+Bit Width 2, Fold 1: Accuracy=0.9930, Latency=17.9447ms
+Bit Width 2, Fold 2: Accuracy=0.9976, Latency=15.0294ms
+Bit Width 2, Fold 3: Accuracy=0.9866, Latency=20.8490ms
+
+==================================================
+Bit-Width: 2
+Average Accuracy: 0.9924
+Average F1 Score: 0.3374
+Average Latency: 17.9410 ms
+==================================================
+
+Bit Width 3, Fold 1: Accuracy=0.9983, Latency=15.7061ms
+Bit Width 3, Fold 2: Accuracy=0.9934, Latency=13.4080ms
+Bit Width 3, Fold 3: Accuracy=0.9973, Latency=13.3945ms
+
+==================================================
+Bit-Width: 3
+Average Accuracy: 0.9963
+Average F1 Score: 0.4858
+Average Latency: 14.1695 ms
+==================================================
+
+Bit Width 4, Fold 1: Accuracy=0.9974, Latency=18.2886ms
+Bit Width 4, Fold 2: Accuracy=0.9989, Latency=15.0059ms
+Bit Width 4, Fold 3: Accuracy=0.9936, Latency=12.7255ms
+
+==================================================
+Bit-Width: 4
+Average Accuracy: 0.9966
+Average F1 Score: 0.5145
+Average Latency: 15.3400 ms
+==================================================
+
+Bit Width 6, Fold 1: Accuracy=0.9965, Latency=13.0666ms
+Bit Width 6, Fold 2: Accuracy=0.9927, Latency=15.0794ms
+Bit Width 6, Fold 3: Accuracy=0.9929, Latency=12.8831ms
+
+==================================================
+Bit-Width: 6
+Average Accuracy: 0.9941
+Average F1 Score: 0.3356
+Average Latency: 13.6764 ms
+==================================================
+
+Bit Width 8, Fold 1: Accuracy=0.9943, Latency=12.6319ms
+Bit Width 8, Fold 2: Accuracy=0.9952, Latency=12.0291ms
+Bit Width 8, Fold 3: Accuracy=0.9918, Latency=11.9317ms
+
+==================================================
+Bit-Width: 8
+Average Accuracy: 0.9938
+Average F1 Score: 0.3193
+Average Latency: 12.1976 ms
+==================================================
+
+
+================================================================================
+OVERALL FHE MODEL COMPARISON SUMMARY
+================================================================================
+
+Best model by accuracy: LR (0.9985)
+Best model by latency: LR (4.3469 ms)
+Best model by overhead: DT (5.15x)
+
+Model Comparison Table:
+                          lr           rf         dt
+Plain Accuracy      0.998262     0.998438   0.994575
+FHE Accuracy        0.998543     0.998473   0.993750
+Plain Latency (ms)  0.708586    39.393972   2.368102
+FHE Latency (ms)    4.346865  1843.163188  12.197561
+Latency Overhead    6.134559    46.787950   5.150775
+Best Bit Width      2.000000     8.000000   8.000000
+================================================================================
+
+FHE vs Plain Model Comparison Summary:
+                          lr           rf         dt
+Plain Accuracy      0.998262     0.998438   0.994575
+FHE Accuracy        0.998543     0.998473   0.993750
+Plain Latency (ms)  0.708586    39.393972   2.368102
+FHE Latency (ms)    4.346865  1843.163188  12.197561
+Latency Overhead    6.134559    46.787950   5.150775
+Best Bit Width      2.000000     8.000000   8.000000
+Saved visualization figures to folder: 'results'
+
