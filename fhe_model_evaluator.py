@@ -18,6 +18,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 from imblearn.under_sampling import RandomUnderSampler
 import matplotlib.pyplot as plt
+from matplotlib.cm import get_cmap
 
 class FHEModelEvaluator:
     """
@@ -1109,124 +1110,201 @@ class FHEModelEvaluator:
         plt.tight_layout()
         return acc_fig, lat_fig
     
+    def plot_accuracy_vs_latency(self, model_type):
+        """
+        Generate "Accuracy vs Latency" plots for all configurations in the search space.
+        Configurations are color-coded by bit-width, and Pareto-optimal solutions are highlighted.
+        
+        Args:
+            model_type (str): The type of the model to plot (e.g., 'lr', 'rf', etc.).
+        
+        Raises:
+            ValueError: If no evaluation results are available for the specified model type.
+        """
+        if 'evaluation' not in self.results or model_type not in self.results['evaluation']['model_comparison']:
+            raise ValueError(f"No evaluation results found for model type: {model_type}")
+        
+        # Retrieve evaluation results
+        comparison = self.results['evaluation']['model_comparison'][model_type]
+        
+        # Extract data and ensure they're in the right format
+        # Assuming each configuration has bit_width, accuracy, and latency
+        configurations = comparison['cipher_results']['configurations']
+        bit_widths = [config['bit_width'] for config in configurations]
+        accuracies = [config['accuracy'] for config in configurations]
+        latencies = [config['latency'] for config in configurations]
+        
+        # Get unique bit widths for coloring
+        unique_bit_widths = sorted(set(bit_widths))
+        
+        # Identify Pareto-optimal solutions
+        pareto_indices = self._identify_pareto_front(latencies, accuracies)
+        
+        # Create the plot
+        plt.figure(figsize=(10, 6))
+        cmap = plt.get_cmap("tab10")  # Use a colormap for bit-widths
+        
+        # Plot all configurations, colored by bit-width
+        for i, bw in enumerate(unique_bit_widths):
+            indices = [j for j, width in enumerate(bit_widths) if width == bw]
+            plt.scatter(
+                [latencies[j] for j in indices],
+                [accuracies[j] for j in indices],
+                label=f"{bw} bits",
+                color=cmap(i % 10),
+                alpha=0.7
+            )
+        
+        # Highlight Pareto-optimal solutions
+        pareto_latencies = [latencies[i] for i in pareto_indices]
+        pareto_accuracies = [accuracies[i] for i in pareto_indices]
+        plt.scatter(
+            pareto_latencies, 
+            pareto_accuracies, 
+            color='red', 
+            edgecolors='black', 
+            s=100, 
+            label="Pareto Front"
+        )
+        
+        # Connect Pareto front points with a line
+        pareto_points = sorted(zip(pareto_latencies, pareto_accuracies), key=lambda x: x[0])
+        if pareto_points:
+            plt.plot(
+                [p[0] for p in pareto_points],
+                [p[1] for p in pareto_points],
+                'r--', 
+                alpha=0.6
+            )
+        
+        # Add labels and legend
+        plt.xlabel("Latency (ms)")
+        plt.ylabel("Accuracy")
+        plt.title(f"Accuracy vs Latency for {model_type.upper()} Configurations")
+        plt.legend(title="Bit Width")
+        plt.grid(True, alpha=0.3)
+        
+        # Annotate Pareto points with their bit-width
+        for i in pareto_indices:
+            plt.annotate(
+                f"{bit_widths[i]}b", 
+                (latencies[i], accuracies[i]),
+                xytext=(5, 5),
+                textcoords='offset points',
+                fontsize=8
+            )
+        
+        plt.show()
+
+    def _identify_pareto_front(self, latencies, accuracies):
+        """
+        Identify Pareto-optimal solutions based on latency and accuracy.
+        
+        Args:
+            latencies (list): List of latency values.
+            accuracies (list): List of accuracy values.
+        
+        Returns:
+            list: Indices of Pareto-optimal configurations.
+        """
+      
+        # A configuration is **Pareto-optimal** if no other configuration exists that:
+        # - Has a lower latency **and** a higher or equal accuracy.
+        # - Or has a higher accuracy **and** a lower or equal latency.
+        
+        # We want to MINIMIZE latency and MAXIMIZE accuracy
+        pareto_indices = []
+        
+        # For each configuration
+        for i in range(len(latencies)):
+            is_dominated = False
+            
+            # Compare with all other configurations
+            for j in range(len(latencies)):
+                if i != j:
+                    # Check if j dominates i
+                    # (j has lower or equal latency AND higher or equal accuracy)
+                    # AND at least one is strictly better
+                    if (latencies[j] <= latencies[i] and accuracies[j] >= accuracies[i]) and \
+                    (latencies[j] < latencies[i] or accuracies[j] > accuracies[i]):
+                        is_dominated = True
+                        break
+            
+            # If not dominated by any other configuration, it's Pareto-optimal
+            if not is_dominated:
+                pareto_indices.append(i)
+        
+        return pareto_indices
 
     def generate_report(self, report_file='fhe_evaluation_report.txt', output_folder='results', save_figures=True):
-        """      
-        This method generates a detailed report summarizing the evaluation of Fully Homomorphic Encryption (FHE) models 
-        compared to plain models. It includes visualizations of accuracy, latency, and tradeoff metrics, and saves the 
-        results to specified files and folders.
+        """
+        Generate a detailed report summarizing the evaluation of Fully Homomorphic Encryption (FHE) models
+        compared to plain models. Includes visualizations of accuracy, latency, and tradeoff metrics.
+
+        Args:
             report_file (str): The name of the report file to save. Default is 'fhe_evaluation_report.txt'.
             output_folder (str): The folder where the report and figures will be saved. Default is 'results'.
             save_figures (bool): Whether to save the generated figures to disk. Default is True.
+
+        Returns:
             tuple: A tuple containing:
                 - acc_fig (matplotlib.figure.Figure): The figure for overall accuracy comparison.
                 - latency_fig (matplotlib.figure.Figure): The figure for overall latency comparison.
                 - model_figures (dict): A dictionary containing paths to model-specific figures, including:
-                    - 'accuracy': Path to the accuracy figure for each model type.
-                    - 'latency': Path to the latency figure for each model type.
-                    - 'tradeoff': Path to the tradeoff figure for each model type.
-                    - 'bit_width_impact': Path to the bit-width impact figure for each model type.
-        Raises:
-            ValueError: If the evaluation has not been completed before calling this method.
-        Notes:
-            - The method assumes that the evaluation has been completed and results are stored in the instance variables.
-            - Figures are saved in the specified output folder with descriptive filenames.
-            - The report includes dataset information, model parameters, evaluation results, and generated figure details.
+                    - 'accuracy_vs_latency': Path to the "Accuracy vs Latency" figure for each model type.
         """
         if not self.evaluation_complete:
             raise ValueError("Must run evaluation before generating report")
-        
+
         import os
         if not os.path.exists(output_folder):
             os.makedirs(output_folder)
-        
+
         report_path = os.path.join(output_folder, report_file)
-        
-        acc_fig, latency_fig = self.visualize_model_comparison()
-        
         model_figures = {}
-        
+
         if save_figures:
-            acc_fig_path = os.path.join(output_folder, 'overall_accuracy_comparison.png')
-            latency_fig_path = os.path.join(output_folder, 'overall_latency_comparison.png')
-            acc_fig.savefig(acc_fig_path)
-            latency_fig.savefig(latency_fig_path)
-            
             for model_type in self.model_types:
                 if 'model_comparison' in self.evaluation_results and model_type in self.evaluation_results['model_comparison']:
-                    model_data = self.evaluation_results['model_comparison'][model_type]
-                    
-                    # accuracy 
-                    if 'figures' in model_data and 'accuracy_fig' in model_data['figures']:
-                        acc_path = os.path.join(output_folder, f'{model_type}_accuracy.png')
-                        model_data['figures']['accuracy_fig'].savefig(acc_path)
-                        
-                    # latency
-                    if 'figures' in model_data and 'latency_fig' in model_data['figures']:
-                        lat_path = os.path.join(output_folder, f'{model_type}_latency.png')
-                        model_data['figures']['latency_fig'].savefig(lat_path)
-                        
-                    # tradeoff
-                    if 'figures' in model_data and 'tradeoff_fig' in model_data['figures']:
-                        trade_path = os.path.join(output_folder, f'{model_type}_tradeoff.png')
-                        model_data['figures']['tradeoff_fig'].savefig(trade_path)
-                    
-                    bit_width_impact = model_data['comparison']
-                    accuracies = model_data['cipher_results']['accuracies']
-                    latencies = model_data['cipher_results']['latencies']
-                    best_idx = bit_width_impact['best_tradeoff_idx']
-                    
-                    plt.figure(figsize=(10, 6))
-                    plt.plot(self.bit_widths, accuracies, 'o-', label='Accuracy')
-                    plt.axhline(
-                        y=model_data['plain_results']['avg_accuracy'],
-                        color='r', linestyle='--', label='Plain Model Accuracy'
-                    )
-                    plt.scatter(
-                        self.bit_widths[best_idx],
-                        accuracies[best_idx],
-                        color='red', s=100, zorder=5, label='Best Tradeoff'
-                    )
-                    plt.xlabel('Bit Width')
-                    plt.ylabel('Accuracy')
-                    plt.title(f'{model_type.upper()} FHE Accuracy by Bit Width')
-                    plt.grid(True, alpha=0.3)
-                    plt.legend()
-                    
-                    impact_path = os.path.join(output_folder, f'{model_type}_bit_width_impact.png')
-                    plt.savefig(impact_path)
+                    # Generate and save the "Accuracy vs Latency" plot
+                    if self.verbose:
+                        print(f"Generating 'Accuracy vs Latency' plot for {model_type.upper()}...")
+                    plt.figure()
+                    self.plot_accuracy_vs_latency(model_type)
+                    accuracy_vs_latency_path = os.path.join(output_folder, f'{model_type}_accuracy_vs_latency.png')
+                    plt.savefig(accuracy_vs_latency_path)
                     plt.close()
-                    
-                    model_figures[model_type] = {
-                        'accuracy': acc_path if 'accuracy_fig' in model_data['figures'] else None,
-                        'latency': lat_path if 'latency_fig' in model_data['figures'] else None,
-                        'tradeoff': trade_path if 'tradeoff_fig' in model_data['figures'] else None,
-                        'bit_width_impact': impact_path
-                    }
-            
+
+                    # Store the path to the plot
+                    if model_type not in model_figures:
+                        model_figures[model_type] = {}
+                    model_figures[model_type]['accuracy_vs_latency'] = accuracy_vs_latency_path
+
             if self.verbose:
-                print(f"Saved visualization figures to folder: '{output_folder}'")
-        
+                print(f"Saved 'Accuracy vs Latency' plots to folder: '{output_folder}'")
+
         if self.verbose:
             print(f"\nWriting summary report to {report_path}...")
-            
+
         with open(report_path, 'w') as f:
             f.write("FHE vs Plain Model Evaluation Report\n")
             f.write("=" * 40 + "\n\n")
-            
+
             if self.data is not None:
                 f.write(f"Dataset Shape: {self.data.shape}\n")
                 if self.target_column:
                     target_counts = self.data[self.target_column].value_counts()
                     f.write(f"Target Distribution: {target_counts}\n")
-                    f.write(f"Target Ratios: {target_counts / len(self.data) * 100:.4f}%\n")
+                    f.write("Target Ratios:\n")
+                    for label, ratio in (target_counts / len(self.data) * 100).items():
+                        f.write(f"  {label}: {ratio:.4f}%\n")
             f.write("\n")
-            
+
             f.write("Model Parameters:\n")
             for model_type, params in self.best_params.items():
                 f.write(f"{model_type.upper()}: {params}\n")
             f.write("\n")
-            
+
             f.write("FHE Evaluation Results:\n")
             f.write(f"Best model by accuracy: "
                     f"{self.evaluation_results['summary']['best_accuracy_model'].upper()}\n")
@@ -1234,39 +1312,21 @@ class FHEModelEvaluator:
                     f"{self.evaluation_results['summary']['best_latency_model'].upper()}\n")
             f.write(f"Best model by overhead: "
                     f"{self.evaluation_results['summary']['best_overhead_model'].upper()}\n\n")
-            
+
             f.write("Model Comparison Table:\n")
             f.write(self.evaluation_results['summary']['comparison_table'].to_string())
             f.write("\n\n")
-            
+
             if save_figures:
                 f.write("Generated Figures:\n")
-                f.write(f"Overall accuracy comparison: {os.path.basename(acc_fig_path)}\n")
-                f.write(f"Overall latency comparison: {os.path.basename(latency_fig_path)}\n\n")
-                
-                f.write("Model-specific figures:\n")
                 for model_type, paths in model_figures.items():
                     f.write(f"{model_type.upper()}:\n")
                     for fig_type, path in paths.items():
                         if path:
                             f.write(f"  {fig_type}: {os.path.basename(path)}\n")
                     f.write("\n")
-            
-            f.write("FHE Bit Width Impact:\n")
-            for model_type in self.model_types:
-                bit_width_impact = self.evaluation_results['model_comparison'][model_type]['comparison']
-                f.write(f"{model_type.upper()} - Best bit width: {bit_width_impact['best_bit_width']}\n")
-                accuracies = self.evaluation_results['model_comparison'][model_type]['cipher_results']['accuracies']
-                latencies = self.evaluation_results['model_comparison'][model_type]['cipher_results']['latencies']
-                
-                for i, bw in enumerate(self.bit_widths):
-                    f.write(f"  {bw} bits: Accuracy={accuracies[i]:.4f}, "
-                            f"Latency={latencies[i]:.2f}ms, "
-                            f"Overhead={bit_width_impact['latency_ratios'][i]:.2f}x\n")
-                f.write("\n")
-        
+
         if self.verbose:
             print(f"Evaluation complete! Results saved to '{report_path}'")
-        
-        return acc_fig, latency_fig, model_figures
-    
+
+        return model_figures
